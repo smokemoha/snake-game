@@ -50,7 +50,7 @@ The game is built using:
 ## Installation
 1. Clone the repository:
 ```
-git clone https://github.com/yourusername/snake-java.git
+git clone https://github.com/smokemoha/snake-java.git
 ```
 
 2. Navigate to the project directory:
