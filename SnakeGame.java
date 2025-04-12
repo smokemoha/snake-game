@@ -1,13 +1,17 @@
+// Importing necessary libraries for GUI and event handling
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
 
+// SnakeGame extends JPanel for drawing and implements ActionListener and KeyListener for game logic and controls
 public class SnakeGame extends JPanel implements ActionListener, KeyListener {
+    
+    // Tile class represents each grid square on the board
     private class Tile {
-        int x;
-        int y;
+        int x; // x-coordinate in grid units (not pixels)
+        int y; // y-coordinate in grid units
 
         Tile(int x, int y) {
             this.x = x;
@@ -15,177 +19,186 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         }
     }  
 
+    // Game board dimensions (in pixels)
     int boardWidth;
     int boardHeight;
+
+    // Size of each square tile on the grid (25x25 pixels)
     int tileSize = 25;
     
-    //snake
+    // Snake head and body
     Tile snakeHead;
     ArrayList<Tile> snakeBody;
 
-    //food
+    // Food tile
     Tile food;
-    Random random;
+    Random random; // for random food placement
 
-    //game logic
-    int velocityX;
-    int velocityY;
-    Timer gameLoop;
+    // Snake direction control (velocityX, velocityY)
+    int velocityX; // horizontal movement: -1 (left), 0 (no move), 1 (right)
+    int velocityY; // vertical movement: -1 (up), 0 (no move), 1 (down)
 
-    boolean gameOver = false;
-    // Dialog for game over
-    JDialog gameOverDialog;
-    
+    Timer gameLoop; // timer to trigger game updates
+
+    boolean gameOver = false; // flag to track game state
+    JDialog gameOverDialog;   // custom dialog window when game ends
+
+    // Constructor to initialize game board
     SnakeGame(int boardWidth, int boardHeight) {
         this.boardWidth = boardWidth;
         this.boardHeight = boardHeight;
+
+        // Set JPanel properties
         setPreferredSize(new Dimension(this.boardWidth, this.boardHeight));
         setBackground(Color.black);
         addKeyListener(this);
-        setFocusable(true);
+        setFocusable(true); // allows key events to be received
 
+        // Start game
         initializeGame();
     }
     
-    // Method to initialize or reset the game
+    // Initialize or reset the game
     private void initializeGame() {
-        // Reset game over state
         gameOver = false;
-        
-        // Initialize snake
-        snakeHead = new Tile(5, 5);
-        snakeBody = new ArrayList<Tile>();
 
-        // Initialize food
+        // Set initial snake head position in grid units
+        snakeHead = new Tile(5, 5);
+        snakeBody = new ArrayList<>();
+
+        // Set initial food location
         food = new Tile(10, 10);
         if (random == null) {
-            random = new Random();
+            random = new Random(); // initialize random if first run
         }
-        placeFood();
+        placeFood(); // place food randomly
 
-        // Set initial direction
+        // Initial movement direction: moving right
         velocityX = 1;
         velocityY = 0;
-        
-        // Start or restart game timer
+
+        // Start game timer if not already started
         if (gameLoop == null) {
-            gameLoop = new Timer(100, this); //how long it takes to start timer, milliseconds gone between frames
+            // Timer triggers `actionPerformed` every 100ms
+            gameLoop = new Timer(100, this); 
         }
-        gameLoop.start();
+        gameLoop.start(); // start or resume the game loop
     }
-    
+
+    // Called automatically to draw everything on the screen
     public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        draw(g);
+        super.paintComponent(g); // clears previous frame
+        draw(g); // draw current frame
     }
 
+    // Method to draw grid, food, snake, and score
     public void draw(Graphics g) {
-        //Grid Lines
-        for(int i = 0; i < boardWidth/tileSize; i++) {
-            //(x1, y1, x2, y2)
-            g.drawLine(i*tileSize, 0, i*tileSize, boardHeight);
-            g.drawLine(0, i*tileSize, boardWidth, i*tileSize); 
+        // Draw grid lines for reference
+        for(int i = 0; i < boardWidth / tileSize; i++) {
+            // Vertical line: x = i*tileSize
+            g.drawLine(i * tileSize, 0, i * tileSize, boardHeight);
+            // Horizontal line: y = i*tileSize
+            g.drawLine(0, i * tileSize, boardWidth, i * tileSize); 
         }
 
-        //Food
+        // Draw food in red
         g.setColor(Color.red);
-        g.fill3DRect(food.x*tileSize, food.y*tileSize, tileSize, tileSize, true);
+        g.fill3DRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize, true);
 
-        //Snake Head
+        // Draw snake head in green
         g.setColor(Color.green);
-        g.fill3DRect(snakeHead.x*tileSize, snakeHead.y*tileSize, tileSize, tileSize, true);
-        
-        //Snake Body
-        for (int i = 0; i < snakeBody.size(); i++) {
-            Tile snakePart = snakeBody.get(i);
-            g.fill3DRect(snakePart.x*tileSize, snakePart.y*tileSize, tileSize, tileSize, true);
+        g.fill3DRect(snakeHead.x * tileSize, snakeHead.y * tileSize, tileSize, tileSize, true);
+
+        // Draw each part of snake body
+        for (Tile snakePart : snakeBody) {
+            g.fill3DRect(snakePart.x * tileSize, snakePart.y * tileSize, tileSize, tileSize, true);
         }
 
-        //Score
+        // Draw score (number of body tiles)
         g.setFont(new Font("Arial", Font.PLAIN, 16));
         g.setColor(Color.white);
-        g.drawString("Score: " + String.valueOf(snakeBody.size()), tileSize - 16, tileSize);
+        g.drawString("Score: " + snakeBody.size(), tileSize - 16, tileSize);
     }
 
-    public void placeFood(){
-        food.x = random.nextInt(boardWidth/tileSize);
-        food.y = random.nextInt(boardHeight/tileSize);
+    // Places food at a random tile on the board
+    public void placeFood() {
+        // `boardWidth / tileSize` = number of tiles horizontally
+        food.x = random.nextInt(boardWidth / tileSize);
+        food.y = random.nextInt(boardHeight / tileSize);
     }
 
+    // Handles snake movement, eating, and collision detection
     public void move() {
-        //eat food
+        // Check if head is on same tile as food
         if (collision(snakeHead, food)) {
+            // Add new segment at food's position
             snakeBody.add(new Tile(food.x, food.y));
-            placeFood();
+            placeFood(); // relocate food
         }
 
-        //move snake body
-        for (int i = snakeBody.size()-1; i >= 0; i--) {
+        // Move snake body segments
+        for (int i = snakeBody.size() - 1; i >= 0; i--) {
             Tile snakePart = snakeBody.get(i);
-            if (i == 0) { //right before the head
+            if (i == 0) {
+                // First body part takes place of old head
                 snakePart.x = snakeHead.x;
                 snakePart.y = snakeHead.y;
-            }
-            else {
-                Tile prevSnakePart = snakeBody.get(i-1);
-                snakePart.x = prevSnakePart.x;
-                snakePart.y = prevSnakePart.y;
+            } else {
+                // Each segment moves to where the previous segment was
+                Tile prev = snakeBody.get(i - 1);
+                snakePart.x = prev.x;
+                snakePart.y = prev.y;
             }
         }
-        //move snake head
+
+        // Move the snake head in the current direction
         snakeHead.x += velocityX;
         snakeHead.y += velocityY;
 
-        //game over conditions
-        for (int i = 0; i < snakeBody.size(); i++) {
-            Tile snakePart = snakeBody.get(i);
-
-            //collide with snake head
-            if (collision(snakeHead, snakePart)) {
+        // Check for collision with self
+        for (Tile bodyPart : snakeBody) {
+            if (collision(snakeHead, bodyPart)) {
                 gameOver = true;
             }
         }
 
-        if (snakeHead.x*tileSize < 0 || snakeHead.x*tileSize > boardWidth || //passed left border or right border
-            snakeHead.y*tileSize < 0 || snakeHead.y*tileSize > boardHeight ) { //passed top border or bottom border
+        // Check collision with wall boundaries
+        if (snakeHead.x * tileSize < 0 || snakeHead.x * tileSize >= boardWidth ||
+            snakeHead.y * tileSize < 0 || snakeHead.y * tileSize >= boardHeight) {
             gameOver = true;
         }
     }
 
-    public boolean collision(Tile tile1, Tile tile2) {
-        return tile1.x == tile2.x && tile1.y == tile2.y;
+    // Check if two tiles occupy the same position
+    public boolean collision(Tile t1, Tile t2) {
+        return t1.x == t2.x && t1.y == t2.y;
     }
 
+    // Called by Timer every frame (100ms)
     @Override
-    public void actionPerformed(ActionEvent e) { //called every x milliseconds by gameLoop timer
-        move();
-        repaint();
+    public void actionPerformed(ActionEvent e) {
+        move();    // update game logic
+        repaint(); // request repaint of screen
         if (gameOver) {
-            gameLoop.stop();
-            showGameOverDialog();
+            gameLoop.stop(); // stop game loop
+            showGameOverDialog(); // show dialog
         }
     }
-    
-      // Method to show game over dialog
-      private void showGameOverDialog() {
-        // Get the parent window (JFrame)
+
+    // Show game over UI overlay
+    private void showGameOverDialog() {
         Window window = SwingUtilities.getWindowAncestor(this);
-        
         if (window instanceof JFrame) {
             JFrame parentFrame = (JFrame) window;
-            
-            // Create game over dialog
             gameOverDialog = new JDialog(parentFrame, "Game Over", true);
             gameOverDialog.setLayout(new BorderLayout());
-            
-            // Create panel with a nice gradient background
+
+            // Custom panel with gradient background
             JPanel panel = new JPanel() {
                 @Override
                 protected void paintComponent(Graphics g) {
                     super.paintComponent(g);
                     Graphics2D g2d = (Graphics2D) g;
-                    
-                    // Create gradient background
                     GradientPaint gp = new GradientPaint(
                         0, 0, new Color(45, 45, 45), 
                         0, getHeight(), new Color(10, 10, 10));
@@ -193,99 +206,82 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
                     g2d.fillRect(0, 0, getWidth(), getHeight());
                 }
             };
+
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-            
-            // Game over title
+
             JLabel titleLabel = new JLabel("GAME OVER");
             titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
             titleLabel.setForeground(Color.RED);
             titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            
-            // Score label
+
             JLabel scoreLabel = new JLabel("Your Score: " + snakeBody.size());
             scoreLabel.setFont(new Font("Arial", Font.PLAIN, 18));
             scoreLabel.setForeground(Color.WHITE);
             scoreLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            
-            // Restart instruction
+
             JLabel restartLabel = new JLabel("Press SPACE to restart");
             restartLabel.setFont(new Font("Arial", Font.ITALIC, 16));
             restartLabel.setForeground(Color.YELLOW);
             restartLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            
-            // Add components to panel with spacing
+
             panel.add(titleLabel);
             panel.add(Box.createRigidArea(new Dimension(0, 15)));
             panel.add(scoreLabel);
             panel.add(Box.createRigidArea(new Dimension(0, 20)));
             panel.add(restartLabel);
-            
+
             gameOverDialog.add(panel, BorderLayout.CENTER);
             gameOverDialog.setSize(300, 200);
             gameOverDialog.setLocationRelativeTo(parentFrame);
-            
-            // Make dialog non-modal so keyboard events still work
-            gameOverDialog.setModal(false);
-            
-            // Add key listener to the dialog
+
+            gameOverDialog.setModal(false); // allow key events
             gameOverDialog.addKeyListener(new KeyAdapter() {
                 @Override
                 public void keyPressed(KeyEvent e) {
                     if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                        gameOverDialog.dispose();
-                        initializeGame();
+                        gameOverDialog.dispose(); // close dialog
+                        initializeGame(); // reset game
                     }
                 }
             });
-            
-            // Make sure the dialog can receive key events
+
             gameOverDialog.setFocusable(true);
             gameOverDialog.requestFocus();
-            
             gameOverDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
             gameOverDialog.setVisible(true);
         }
     }
+
+    // Keyboard controls
     @Override
     public void keyPressed(KeyEvent e) {
-        // Game controls
         if (!gameOver) {
+            // Prevent reverse direction
             if (e.getKeyCode() == KeyEvent.VK_UP && velocityY != 1) {
                 velocityX = 0;
                 velocityY = -1;
-            }
-            else if (e.getKeyCode() == KeyEvent.VK_DOWN && velocityY != -1) {
+            } else if (e.getKeyCode() == KeyEvent.VK_DOWN && velocityY != -1) {
                 velocityX = 0;
                 velocityY = 1;
-            }
-            else if (e.getKeyCode() == KeyEvent.VK_LEFT && velocityX != 1) {
+            } else if (e.getKeyCode() == KeyEvent.VK_LEFT && velocityX != 1) {
                 velocityX = -1;
                 velocityY = 0;
-            }
-            else if (e.getKeyCode() == KeyEvent.VK_RIGHT && velocityX != -1) {
+            } else if (e.getKeyCode() == KeyEvent.VK_RIGHT && velocityX != -1) {
                 velocityX = 1;
                 velocityY = 0;
             }
-        } 
-        // Restart game with space bar when game is over
-        // When the space key is pressed AND the game is over...
-        else if (e.getKeyCode() == KeyEvent.VK_SPACE && gameOver) {
-            // Check if there's a game over dialog window AND if it's currently visible
+        } else if (e.getKeyCode() == KeyEvent.VK_SPACE && gameOver) {
             if (gameOverDialog != null && gameOverDialog.isVisible()) {
-                // If so, close (remove) the game over dialog window
                 gameOverDialog.dispose();
             }
-            
-            // Reset and restart the game
-            initializeGame();
+            initializeGame(); // restart game
         }
     }
 
-    
     @Override
-    public void keyTyped(KeyEvent e) {}
+    public void keyTyped(KeyEvent e) {} 
 
     @Override
-    public void keyReleased(KeyEvent e) {}
+    public void keyReleased(KeyEvent e) {} 
 }
